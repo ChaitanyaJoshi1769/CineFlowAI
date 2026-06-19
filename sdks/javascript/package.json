@@ -1,0 +1,21 @@
+{
+  "name": "@cineflow/sdk",
+  "version": "0.1.0",
+  "description": "CineFlow AI - JavaScript SDK",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "axios": "^1.5.0",
+    "graphql": "^16.8.0",
+    "graphql-request": "^5.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  }
+}
