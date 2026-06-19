@@ -1,13 +1,45 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from contextlib import asynccontextmanager
 import logging
+from datetime import datetime
+import os
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-app = FastAPI(title='CineFlow AI - admin')
 
-@app.get('/health')
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("admin service starting...")
+    yield
+    logger.info("admin service shutting down...")
+
+app = FastAPI(
+    title="CineFlow AI - admin",
+    version="0.1.0",
+    lifespan=lifespan
+)
+
+@app.get("/health")
 async def health():
-    return {'status': 'healthy', 'service': 'admin'}
+    return {
+        "status": "healthy",
+        "service": "admin",
+        "timestamp": datetime.utcnow().isoformat()
+    }
 
-@app.get('/ready')
+@app.get("/ready")
 async def ready():
-    return {'ready': True}
+    return {"ready": True, "service": "admin"}
+
+@app.post("/api/v1/test")
+async def test_endpoint(req: dict):
+    try:
+        return {"success": True, "data": {"service": "admin", "status": "operational"}}
+    except Exception as e:
+        logger.error(f"Error: {e}")
+        raise HTTPException(status_code=500, detail="Service error")
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("API_PORT", "8010"))
+    uvicorn.run(app, host="0.0.0.0", port=port)
