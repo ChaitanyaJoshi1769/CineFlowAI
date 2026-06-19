@@ -1,0 +1,470 @@
+syntax = "proto3";
+
+package cineflow.api.v1;
+
+option go_package = "github.com/ChaitanyaJoshi1769/CineFlowAI/backend/api/v1;api";
+option java_package = "com.cineflow.api.v1";
+option csharp_namespace = "CineFlow.API.V1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+
+// ============================================================================
+// USER & AUTH MESSAGES
+// ============================================================================
+
+message User {
+  string id = 1;
+  string email = 2;
+  string username = 3;
+  string first_name = 4;
+  string last_name = 5;
+  string avatar_url = 6;
+  string bio = 7;
+  string status = 8;
+  bool email_verified = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp last_login_at = 12;
+  map<string, string> metadata = 13;
+}
+
+message AuthToken {
+  string access_token = 1;
+  string refresh_token = 2;
+  string token_type = 3;
+  int32 expires_in = 4;
+  string scope = 5;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+  string device_name = 3;
+}
+
+message LoginResponse {
+  User user = 1;
+  AuthToken token = 2;
+}
+
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+  string first_name = 3;
+  string last_name = 4;
+  string username = 5;
+}
+
+message RegisterResponse {
+  User user = 1;
+  string verification_token = 2;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message MFAVerifyRequest {
+  string user_id = 1;
+  string code = 2;
+  string method = 3;
+}
+
+// ============================================================================
+// ORGANIZATION & TEAM MESSAGES
+// ============================================================================
+
+message Organization {
+  string id = 1;
+  string name = 2;
+  string slug = 3;
+  string description = 4;
+  string logo_url = 5;
+  string status = 6;
+  map<string, string> metadata = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message Team {
+  string id = 1;
+  string organization_id = 2;
+  string name = 3;
+  string description = 4;
+  string icon_url = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message Membership {
+  string id = 1;
+  string user_id = 2;
+  string organization_id = 3;
+  string role = 4;
+  google.protobuf.Timestamp joined_at = 5;
+}
+
+// ============================================================================
+// PROJECT & EXPERIENCE MESSAGES
+// ============================================================================
+
+message Project {
+  string id = 1;
+  string organization_id = 2;
+  string name = 3;
+  string slug = 4;
+  string description = 5;
+  string thumbnail_url = 6;
+  string project_type = 7;
+  string status = 8;
+  string visibility = 9;
+  map<string, string> metadata = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+message Experience {
+  string id = 1;
+  string project_id = 2;
+  string title = 3;
+  string description = 4;
+  string genre = 5;
+  string target_audience = 6;
+  int32 runtime_minutes = 7;
+  string status = 8;
+  string visibility = 9;
+  int32 version = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp published_at = 13;
+  map<string, string> metadata = 14;
+}
+
+// ============================================================================
+// CHARACTER & SCENE MESSAGES
+// ============================================================================
+
+message Character {
+  string id = 1;
+  string experience_id = 2;
+  string name = 3;
+  string role = 4;
+  string personality_archetype = 5;
+  string voice_id = 6;
+  google.protobuf.Struct appearance = 7;
+  string backstory = 8;
+  google.protobuf.Struct goals = 9;
+  google.protobuf.Struct beliefs = 10;
+  google.protobuf.Struct secrets = 11;
+  string status = 12;
+  string appearance_model = 13;
+  string animation_profile = 14;
+  google.protobuf.Timestamp created_at = 15;
+  google.protobuf.Timestamp updated_at = 16;
+}
+
+message Scene {
+  string id = 1;
+  string experience_id = 2;
+  string title = 3;
+  string description = 4;
+  string scene_type = 5;
+  string location = 6;
+  string time_period = 7;
+  repeated string characters_present = 8;
+  int32 sequence_number = 9;
+  int32 duration_seconds = 10;
+  string prompt = 11;
+  string status = 12;
+  int32 version = 13;
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp updated_at = 15;
+  google.protobuf.Timestamp generated_at = 16;
+  map<string, string> metadata = 17;
+}
+
+// ============================================================================
+// VIDEO GENERATION MESSAGES
+// ============================================================================
+
+message VideoGenerationRequest {
+  string scene_id = 1;
+  string experience_id = 2;
+  string engine = 3;
+  string prompt = 4;
+  string negative_prompt = 5;
+  float duration_seconds = 6;
+  string resolution = 7;
+  int32 fps = 8;
+  string quality_level = 9;
+  map<string, string> metadata = 10;
+}
+
+message VideoGeneration {
+  string id = 1;
+  string scene_id = 2;
+  string experience_id = 3;
+  string engine = 4;
+  string prompt = 5;
+  string status = 6;
+  string video_url = 7;
+  string thumbnail_url = 8;
+  int32 processing_time_ms = 9;
+  float cost_usd = 10;
+  string error_message = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp completed_at = 13;
+}
+
+// ============================================================================
+// VOICE & AUDIO MESSAGES
+// ============================================================================
+
+message VoiceConfig {
+  string id = 1;
+  string character_id = 2;
+  string engine = 3;
+  string voice_id = 4;
+  string voice_name = 5;
+  string language = 6;
+  string accent = 7;
+  float speaking_rate = 8;
+  float pitch = 9;
+  string voice_sample_url = 10;
+  google.protobuf.Struct emotional_profile = 11;
+  google.protobuf.Timestamp created_at = 12;
+}
+
+message VoiceGenerationRequest {
+  string experience_id = 1;
+  string character_id = 2;
+  string voice_config_id = 3;
+  string text_to_speak = 4;
+  string language = 5;
+  string emotion = 6;
+  float emotion_intensity = 7;
+}
+
+message VoiceGeneration {
+  string id = 1;
+  string experience_id = 2;
+  string character_id = 3;
+  string status = 4;
+  string audio_url = 5;
+  int32 audio_duration_ms = 6;
+  int32 processing_time_ms = 7;
+  float cost_usd = 8;
+  google.protobuf.Struct phonemes = 9;
+  google.protobuf.Struct lip_sync_data = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp completed_at = 12;
+}
+
+// ============================================================================
+// STATE & MEMORY MESSAGES
+// ============================================================================
+
+message Event {
+  string id = 1;
+  string experience_id = 2;
+  string event_type = 3;
+  string actor_id = 4;
+  string actor_type = 5;
+  string target_id = 6;
+  string target_type = 7;
+  string action = 8;
+  google.protobuf.Struct payload = 9;
+  int64 sequence_number = 10;
+  google.protobuf.Timestamp timestamp = 11;
+}
+
+message WorldState {
+  string id = 1;
+  string experience_id = 2;
+  int32 version = 3;
+  string name = 4;
+  google.protobuf.Struct settings = 5;
+  google.protobuf.Struct facts = 6;
+  google.protobuf.Struct lore = 7;
+  google.protobuf.Struct economy_state = 8;
+  string time_of_day = 9;
+  google.protobuf.Struct weather_state = 10;
+  google.protobuf.Timestamp created_at = 11;
+}
+
+message Memory {
+  string id = 1;
+  string entity_id = 2;
+  string entity_type = 3;
+  string memory_type = 4;
+  string content = 5;
+  float importance = 6;
+  repeated string related_entities = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp accessed_at = 9;
+}
+
+// ============================================================================
+// INTERACTION MESSAGES
+// ============================================================================
+
+message InteractiveElement {
+  string id = 1;
+  string scene_id = 2;
+  string element_type = 3;
+  google.protobuf.Struct position = 4;
+  string trigger_text = 5;
+  string interaction_prompt = 6;
+  google.protobuf.Struct action_outcomes = 7;
+  google.protobuf.Struct consequences = 8;
+}
+
+message UserInteraction {
+  string id = 1;
+  string experience_id = 2;
+  string viewer_id = 3;
+  string interactive_element_id = 4;
+  string interaction_type = 5;
+  google.protobuf.Struct interaction_data = 6;
+  float timestamp_seconds = 7;
+  string session_id = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+// ============================================================================
+// STREAMING MESSAGES
+// ============================================================================
+
+message StreamingSession {
+  string id = 1;
+  string experience_id = 2;
+  string viewer_id = 3;
+  string session_token = 4;
+  string current_scene_id = 5;
+  int32 bitrate_kbps = 6;
+  string resolution = 7;
+  int32 fps = 8;
+  string status = 9;
+  float playback_position_seconds = 10;
+  google.protobuf.Timestamp started_at = 11;
+  google.protobuf.Timestamp ended_at = 12;
+}
+
+message StreamEvent {
+  string id = 1;
+  string streaming_session_id = 2;
+  string event_type = 3;
+  float timestamp_seconds = 4;
+  int32 bitrate_kbps = 5;
+  int32 latency_ms = 6;
+  float frame_drop_percent = 7;
+  string error_message = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+// ============================================================================
+// ANALYTICS MESSAGES
+// ============================================================================
+
+message ViewerEngagement {
+  string id = 1;
+  string experience_id = 2;
+  string viewer_id = 3;
+  int32 total_sessions = 4;
+  float total_duration_minutes = 5;
+  float completion_rate = 6;
+  repeated string favorite_scenes = 7;
+  int32 interaction_count = 8;
+  float engagement_score = 9;
+  google.protobuf.Timestamp last_viewed_at = 10;
+}
+
+message QualityMetrics {
+  string id = 1;
+  string experience_id = 2;
+  string metric_date = 3;
+  float avg_generation_time_ms = 4;
+  float avg_frame_rate = 5;
+  float video_quality_score = 6;
+  float audio_quality_score = 7;
+  float narrative_coherence_score = 8;
+  float character_consistency_score = 9;
+  float user_satisfaction_score = 10;
+  int32 total_errors = 11;
+  float error_rate = 12;
+}
+
+// ============================================================================
+// COMMON RESPONSE MESSAGES
+// ============================================================================
+
+message PaginationRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string sort_by = 3;
+  string sort_order = 4;
+}
+
+message PaginationInfo {
+  int32 page = 1;
+  int32 page_size = 2;
+  int32 total_items = 3;
+  int32 total_pages = 4;
+  bool has_next = 5;
+  bool has_previous = 6;
+}
+
+message ListResponse {
+  repeated google.protobuf.Struct items = 1;
+  PaginationInfo pagination = 2;
+}
+
+message ErrorResponse {
+  string code = 1;
+  string message = 2;
+  repeated string details = 3;
+  string request_id = 4;
+}
+
+// ============================================================================
+// SERVICE DEFINITIONS
+// ============================================================================
+
+service UserService {
+  rpc GetUser(google.protobuf.Empty) returns (User);
+  rpc UpdateUser(User) returns (User);
+  rpc ListUsers(PaginationRequest) returns (ListResponse);
+  rpc DeleteUser(google.protobuf.Empty) returns (google.protobuf.Empty);
+}
+
+service AuthService {
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (AuthToken);
+  rpc VerifyMFA(MFAVerifyRequest) returns (google.protobuf.Empty);
+}
+
+service ExperienceService {
+  rpc CreateExperience(Experience) returns (Experience);
+  rpc GetExperience(google.protobuf.Empty) returns (Experience);
+  rpc UpdateExperience(Experience) returns (Experience);
+  rpc ListExperiences(PaginationRequest) returns (ListResponse);
+  rpc PublishExperience(google.protobuf.Empty) returns (Experience);
+  rpc DeleteExperience(google.protobuf.Empty) returns (google.protobuf.Empty);
+}
+
+service VideoGenerationService {
+  rpc GenerateVideo(VideoGenerationRequest) returns (VideoGeneration);
+  rpc GetGeneration(google.protobuf.Empty) returns (VideoGeneration);
+  rpc ListGenerations(PaginationRequest) returns (ListResponse);
+  rpc CancelGeneration(google.protobuf.Empty) returns (google.protobuf.Empty);
+}
+
+service VoiceService {
+  rpc CreateVoiceConfig(VoiceConfig) returns (VoiceConfig);
+  rpc GenerateVoice(VoiceGenerationRequest) returns (VoiceGeneration);
+  rpc GetGeneration(google.protobuf.Empty) returns (VoiceGeneration);
+  rpc ListGenerations(PaginationRequest) returns (ListResponse);
+}

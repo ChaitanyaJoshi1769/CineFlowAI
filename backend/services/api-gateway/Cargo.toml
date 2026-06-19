@@ -1,0 +1,80 @@
+[package]
+name = "api-gateway"
+version = "1.0.0"
+edition = "2021"
+authors = ["CineFlow AI Team <dev@cineflow.ai>"]
+description = "CineFlow AI - API Gateway Service"
+
+[dependencies]
+# Web Framework
+actix-web = "4.4"
+actix-rt = "2.9"
+actix-cors = "0.7"
+actix-middleware-trace-logger = "0.7"
+
+# Async Runtime
+tokio = { version = "1.35", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# HTTP Client
+reqwest = { version = "0.11", features = ["json"] }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono"] }
+tokio-postgres = "0.7"
+
+# Caching
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+
+# Authentication & JWT
+jsonwebtoken = "9.2"
+uuid = { version = "1.6", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Validation
+validator = { version = "0.18", features = ["derive"] }
+
+# Configuration
+config = "0.13"
+dotenv = "0.15"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tracing-actix-web = "0.7"
+
+# Metrics
+prometheus = "0.13"
+prometheus-actix-web = "0.1"
+
+# Distributed Tracing
+opentelemetry = { version = "0.21", features = ["rt-tokio"] }
+opentelemetry-jaeger = "0.20"
+tracing-opentelemetry = "0.22"
+
+# GraphQL
+async-graphql = "0.29"
+async-graphql-actix-web = "0.29"
+
+# gRPC
+tonic = "0.11"
+tonic-build = "0.11"
+prost = "0.12"
+
+# Rate Limiting
+governor = "0.10"
+
+# Error Handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Environment
+env_logger = "0.11"
+
+# Testing
+[dev-dependencies]
+tokio-test = "0.4"
+mockito = "1.2"

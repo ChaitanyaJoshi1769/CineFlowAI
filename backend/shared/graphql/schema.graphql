@@ -1,0 +1,991 @@
+"""
+CineFlow AI GraphQL Schema
+Complete API for interactive video experiences
+"""
+
+scalar DateTime
+scalar JSON
+scalar UUID
+scalar Upload
+
+"""
+============================================================================
+Authentication & Users
+============================================================================
+"""
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BANNED
+}
+
+type User {
+  id: UUID!
+  email: String!
+  username: String
+  firstName: String
+  lastName: String
+  avatarUrl: String
+  bio: String
+  status: UserStatus!
+  emailVerified: Boolean!
+  emailVerifiedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  lastLoginAt: DateTime
+  metadata: JSON
+  organizations: [Organization!]!
+  memberships: [Membership!]!
+  sessions: [Session!]!
+  apiKeys: [APIKey!]!
+}
+
+type AuthPayload {
+  user: User!
+  accessToken: String!
+  refreshToken: String!
+  tokenType: String!
+  expiresIn: Int!
+}
+
+type Session {
+  id: UUID!
+  userId: UUID!
+  tokenHash: String!
+  ipAddress: String
+  userAgent: String
+  deviceName: String
+  expiresAt: DateTime!
+  revokedAt: DateTime
+  createdAt: DateTime!
+  lastActivityAt: DateTime!
+}
+
+"""
+============================================================================
+Organizations & Teams
+============================================================================
+"""
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+type Organization {
+  id: UUID!
+  name: String!
+  slug: String!
+  description: String
+  logoUrl: String
+  status: String!
+  metadata: JSON
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  members: [Membership!]!
+  teams: [Team!]!
+  projects: [Project!]!
+  apiKeys: [APIKey!]!
+  billingInfo: BillingInfo
+}
+
+type Membership {
+  id: UUID!
+  userId: UUID!
+  organizationId: UUID!
+  role: MembershipRole!
+  joinedAt: DateTime!
+  invitedAt: DateTime
+  invitedBy: User
+  user: User!
+  organization: Organization!
+}
+
+type Team {
+  id: UUID!
+  organizationId: UUID!
+  name: String!
+  description: String
+  iconUrl: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  members: [User!]!
+  projects: [Project!]!
+}
+
+"""
+============================================================================
+Projects & Experiences
+============================================================================
+"""
+
+enum ProjectType {
+  EXPERIENCE
+  COMPONENT
+  DATASET
+  MODEL
+}
+
+enum ProjectStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+enum ProjectVisibility {
+  PRIVATE
+  TEAM
+  ORGANIZATION
+  PUBLIC
+}
+
+type Project {
+  id: UUID!
+  organizationId: UUID!
+  name: String!
+  slug: String!
+  description: String
+  thumbnailUrl: String
+  projectType: ProjectType!
+  status: ProjectStatus!
+  visibility: ProjectVisibility!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  createdBy: User!
+  experiences: [Experience!]!
+  metadata: JSON
+}
+
+enum ExperienceStatus {
+  DRAFT
+  PRODUCTION
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+type Experience {
+  id: UUID!
+  projectId: UUID!
+  title: String!
+  description: String
+  genre: String
+  targetAudience: String
+  runtimeMinutes: Int
+  status: ExperienceStatus!
+  visibility: ProjectVisibility!
+  version: Int!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  publishedAt: DateTime
+  publishedBy: User
+  createdBy: User!
+  project: Project!
+  scenes: [Scene!]!
+  characters: [Character!]!
+  worldState: WorldState
+  narrativeBranches: [NarrativeBranch!]!
+  events(limit: Int, offset: Int): EventConnection!
+  viewerEngagement(viewerId: UUID!): ViewerEngagement
+  qualityMetrics: [QualityMetric!]!
+  metadata: JSON
+}
+
+"""
+============================================================================
+Characters & Scenes
+============================================================================
+"""
+
+enum CharacterStatus {
+  ALIVE
+  DEAD
+  ABSENT
+  DORMANT
+}
+
+type Character {
+  id: UUID!
+  experienceId: UUID!
+  name: String!
+  role: String
+  personalityArchetype: String
+  voiceId: String
+  appearance: JSON
+  backstory: String
+  goals: JSON
+  beliefs: JSON
+  secrets: JSON
+  status: CharacterStatus!
+  appearanceModel: String
+  animationProfile: String
+  voiceConfig: VoiceConfig
+  memory(limit: Int): [Memory!]!
+  relationships: [CharacterRelationship!]!
+  conversations(limit: Int): [Conversation!]!
+  emotionalState: JSON
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  metadata: JSON
+}
+
+type CharacterRelationship {
+  id: UUID!
+  characterAId: UUID!
+  characterBId: UUID!
+  relationshipType: String!
+  sentiment: Float!
+  historySummary: String
+  sharedMemories: JSON
+  insideJokes: [String!]
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  characterA: Character!
+  characterB: Character!
+}
+
+type Memory {
+  id: UUID!
+  characterId: UUID!
+  memoryType: String!
+  content: String!
+  importance: Float!
+  relatedCharacters: [Character!]!
+  relatedEvents: [String!]
+  createdAt: DateTime!
+  lastAccessedAt: DateTime
+  decayRate: Float
+}
+
+enum SceneStatus {
+  DRAFT
+  GENERATED
+  REVIEWED
+  APPROVED
+  ARCHIVED
+}
+
+type Scene {
+  id: UUID!
+  experienceId: UUID!
+  title: String!
+  description: String
+  sceneType: String
+  location: String
+  timePeriod: String
+  charactersPresent: [Character!]!
+  sequenceNumber: Int!
+  durationSeconds: Int
+  prompt: String
+  status: SceneStatus!
+  version: Int!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  generatedAt: DateTime
+  videoGeneration: VideoGeneration
+  voiceGenerations: [VoiceGeneration!]!
+  interactiveElements: [InteractiveElement!]!
+  previousScene: Scene
+  nextScene: Scene
+  metadata: JSON
+}
+
+type InteractiveElement {
+  id: UUID!
+  sceneId: UUID!
+  elementType: String!
+  position: JSON
+  triggerText: String
+  interactionPrompt: String
+  actionOutcomes: JSON
+  consequences: JSON
+  branchTo: NarrativeBranch
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+============================================================================
+Video Generation & Processing
+============================================================================
+"""
+
+enum VideoGenerationEngine {
+  OPENAI
+  RUNWAY
+  LUMA
+  PIKA
+  SVD
+  COGVIDEO
+  CUSTOM
+}
+
+enum VideoStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+type VideoGeneration {
+  id: UUID!
+  sceneId: UUID
+  experienceId: UUID!
+  engine: VideoGenerationEngine!
+  prompt: String!
+  negativePrompt: String
+  durationSeconds: Float
+  resolution: String
+  fps: Int
+  qualityLevel: String
+  videoUrl: String
+  thumbnailUrl: String
+  rawOutputUrl: String
+  processingTimeMs: Int
+  costUsd: Float
+  status: VideoStatus!
+  errorMessage: String
+  createdAt: DateTime!
+  completedAt: DateTime
+  metadata: JSON
+}
+
+type VideoComposite {
+  id: UUID!
+  sceneId: UUID!
+  videoUrl: String
+  layers: [Layer!]!
+  compositionConfig: JSON
+  renderingTimeMs: Int
+  finalResolution: String
+  codec: String
+  bitrateKbps: Int
+  fileSizeMb: Float
+  status: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Layer {
+  id: UUID!
+  type: String!
+  content: String
+  position: JSON
+  opacity: Float
+  blendMode: String
+}
+
+"""
+============================================================================
+Voice & Audio
+============================================================================
+"""
+
+enum VoiceEngine {
+  ELEVENLABS
+  GOOGLE
+  AZURE
+  AWS
+  CUSTOM
+}
+
+type VoiceConfig {
+  id: UUID!
+  characterId: UUID
+  experienceId: UUID
+  engine: VoiceEngine!
+  voiceId: String!
+  voiceName: String
+  language: String!
+  accent: String
+  emotionalProfile: JSON
+  speakingRate: Float!
+  pitch: Float!
+  timbreDescription: String
+  voiceSampleUrl: String
+  clonedFrom: VoiceConfig
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  character: Character
+}
+
+type VoiceGeneration {
+  id: UUID!
+  experienceId: UUID!
+  characterId: UUID
+  voiceConfigId: UUID
+  textToSpeak: String!
+  language: String
+  emotion: String
+  emotionIntensity: Float
+  audioUrl: String
+  audioDurationMs: Int
+  processingTimeMs: Int
+  costUsd: Float
+  phonemes: JSON
+  lipSyncData: JSON
+  status: VideoStatus!
+  errorMessage: String
+  createdAt: DateTime!
+  completedAt: DateTime
+}
+
+"""
+============================================================================
+State & World Building
+============================================================================
+"""
+
+type WorldState {
+  id: UUID!
+  experienceId: UUID!
+  version: Int!
+  name: String
+  description: String
+  settings: JSON
+  facts: JSON
+  lore: JSON
+  economyState: JSON
+  timeOfDay: String
+  weatherState: JSON
+  npcsAlive: [String!]
+  locationsDiscovered: JSON
+  eventsTriggered: [String!]
+  objectsState: JSON
+  relationships: JSON
+  createdAt: DateTime!
+}
+
+type StoryArc {
+  id: UUID!
+  experienceId: UUID!
+  name: String!
+  arcType: String!
+  mainCharacterId: UUID
+  conflictType: String
+  stakesLevel: String
+  plannedPacing: JSON
+  actualPacing: JSON
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  mainCharacter: Character
+}
+
+type NarrativeBranch {
+  id: UUID!
+  experienceId: UUID!
+  parentId: UUID
+  choicePointId: UUID
+  choiceText: String
+  outcomeSummary: String
+  probability: Float
+  depthLevel: Int
+  children: [NarrativeBranch!]!
+  parent: NarrativeBranch
+  createdAt: DateTime!
+}
+
+"""
+============================================================================
+Interactions & Streaming
+============================================================================
+"""
+
+type UserInteraction {
+  id: UUID!
+  experienceId: UUID!
+  viewerId: UUID!
+  interactiveElementId: UUID
+  interactionType: String!
+  interactionData: JSON
+  timestampSeconds: Float!
+  sessionId: String!
+  createdAt: DateTime!
+  viewer: User!
+}
+
+type StreamingSession {
+  id: UUID!
+  experienceId: UUID!
+  viewerId: UUID!
+  sessionToken: String!
+  stateVersion: Int
+  currentSceneId: UUID
+  bitrateKbps: Int
+  resolution: String
+  fps: Int
+  status: String!
+  playbackPositionSeconds: Float
+  startedAt: DateTime!
+  endedAt: DateTime
+  durationSeconds: Int
+  totalBytesSent: BigInt
+  streamEvents: [StreamEvent!]!
+  viewer: User!
+  experience: Experience!
+}
+
+type StreamEvent {
+  id: UUID!
+  streamingSessionId: UUID!
+  eventType: String!
+  timestampSeconds: Float
+  bitrateKbps: Int
+  latencyMs: Int
+  frameDropPercent: Float
+  errorMessage: String
+  createdAt: DateTime!
+}
+
+"""
+============================================================================
+Analytics & Engagement
+============================================================================
+"""
+
+type ViewerEngagement {
+  id: UUID!
+  experienceId: UUID!
+  viewerId: UUID!
+  totalSessions: Int!
+  totalDurationMinutes: Float!
+  completionRate: Float!
+  favoriteScenes: [Scene!]!
+  mostChosenBranch: NarrativeBranch
+  interactionCount: Int!
+  emotionCurve: JSON
+  engagementScore: Float!
+  lastViewedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  viewer: User!
+}
+
+type QualityMetric {
+  id: UUID!
+  experienceId: UUID!
+  metricDate: String!
+  avgGenerationTimeMs: Float!
+  avgFrameRate: Float!
+  videoQualityScore: Float!
+  audioQualityScore: Float!
+  narrativeCoherenceScore: Float!
+  characterConsistencyScore: Float!
+  userSatisfactionScore: Float!
+  totalErrors: Int!
+  errorRate: Float!
+}
+
+type CostTracking {
+  id: UUID!
+  organizationId: UUID!
+  serviceType: String!
+  unitCount: Float!
+  unitType: String!
+  costUsd: Float!
+  costDate: String!
+  createdAt: DateTime!
+}
+
+type APIUsage {
+  id: UUID!
+  organizationId: UUID!
+  endpoint: String!
+  method: String!
+  statusCode: Int!
+  responseTimeMs: Int!
+  createdAt: DateTime!
+}
+
+"""
+============================================================================
+Assets & Library
+============================================================================
+"""
+
+type Asset {
+  id: UUID!
+  assetCollectionId: UUID!
+  name: String!
+  assetType: String!
+  description: String
+  filePath: String
+  fileSizeMb: Float
+  mimeType: String
+  durationSeconds: Float
+  tags: [String!]
+  metadata: JSON
+  thumbnailUrl: String
+  previewUrl: String
+  s3Key: String
+  version: Int!
+  status: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  createdBy: User!
+  collection: AssetCollection!
+}
+
+type AssetCollection {
+  id: UUID!
+  organizationId: UUID!
+  name: String!
+  description: String
+  assetType: String!
+  tags: [String!]
+  isPublic: Boolean!
+  assets: [Asset!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  createdBy: User!
+}
+
+"""
+============================================================================
+Billing & Administration
+============================================================================
+"""
+
+type BillingInfo {
+  id: UUID!
+  organizationId: UUID!
+  planType: String!
+  nextBillingDate: DateTime
+  totalMonthlyCostUsd: Float!
+  monthlyUsagePercentage: Float
+  invoices: [Invoice!]!
+  paymentMethod: PaymentMethod
+}
+
+type Invoice {
+  id: UUID!
+  organizationId: UUID!
+  invoiceNumber: String!
+  amount: Float!
+  status: String!
+  issuedAt: DateTime!
+  dueAt: DateTime
+  paidAt: DateTime
+  lineItems: [LineItem!]!
+}
+
+type LineItem {
+  id: UUID!
+  invoiceId: UUID!
+  description: String!
+  quantity: Float!
+  unitPrice: Float!
+  totalAmount: Float!
+}
+
+type PaymentMethod {
+  id: UUID!
+  organizationId: UUID!
+  cardBrand: String
+  cardLast4: String
+  expiryMonth: Int
+  expiryYear: Int
+  isDefault: Boolean!
+  createdAt: DateTime!
+}
+
+type APIKey {
+  id: UUID!
+  organizationId: UUID!
+  projectId: UUID
+  name: String!
+  keyPrefix: String!
+  permissions: [String!]!
+  rateLimitPerMinute: Int
+  status: String!
+  lastUsedAt: DateTime
+  expiresAt: DateTime
+  createdAt: DateTime!
+  createdBy: User!
+}
+
+"""
+============================================================================
+Connections & Pagination
+============================================================================
+"""
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+  totalCount: Int!
+  currentPage: Int!
+  pageSize: Int!
+}
+
+type EventConnection {
+  edges: [EventEdge!]!
+  pageInfo: PageInfo!
+}
+
+type EventEdge {
+  node: Event!
+  cursor: String!
+}
+
+type Event {
+  id: UUID!
+  experienceId: UUID!
+  eventType: String!
+  actorId: String
+  actorType: String
+  targetId: String
+  targetType: String
+  action: String
+  payload: JSON
+  timestamp: DateTime!
+  sequenceNumber: BigInt!
+  version: Int!
+  createdAt: DateTime!
+}
+
+type Conversation {
+  id: UUID!
+  characterId: UUID!
+  viewerId: UUID!
+  messages: [ConversationMessage!]!
+  startedAt: DateTime!
+  endedAt: DateTime
+}
+
+type ConversationMessage {
+  id: UUID!
+  conversationId: UUID!
+  speaker: String!
+  message: String!
+  emotion: String
+  topics: [String!]
+  createdAt: DateTime!
+}
+
+"""
+============================================================================
+Query Root
+============================================================================
+"""
+
+type Query {
+  # Authentication
+  me: User!
+  user(id: UUID!): User
+  users(first: Int, after: String): [User!]!
+
+  # Organizations
+  organization(id: UUID!): Organization
+  organizations(first: Int): [Organization!]!
+
+  # Projects
+  project(id: UUID!): Project
+  projects(organizationId: UUID!, first: Int): [Project!]!
+
+  # Experiences
+  experience(id: UUID!): Experience
+  experiences(projectId: UUID!, first: Int): [Experience!]!
+  experiencesByGenre(genre: String!, first: Int): [Experience!]!
+  publishedExperiences(first: Int): [Experience!]!
+
+  # Characters
+  character(id: UUID!): Character
+  characters(experienceId: UUID!, first: Int): [Character!]!
+
+  # Scenes
+  scene(id: UUID!): Scene
+  scenes(experienceId: UUID!, first: Int): [Scene!]!
+
+  # Video Generations
+  videoGeneration(id: UUID!): VideoGeneration
+  videoGenerations(experienceId: UUID!, first: Int): [VideoGeneration!]!
+
+  # Voice Configurations
+  voiceConfig(id: UUID!): VoiceConfig
+  voiceConfigs(experienceId: UUID!, first: Int): [VoiceConfig!]!
+
+  # Streaming
+  streamingSession(id: UUID!): StreamingSession
+  streamingSessions(experienceId: UUID!, first: Int): [StreamingSession!]!
+
+  # Analytics
+  viewerEngagement(experienceId: UUID!, viewerId: UUID!): ViewerEngagement
+  qualityMetrics(experienceId: UUID!, limit: Int): [QualityMetric!]!
+  organizationAnalytics(organizationId: UUID!, startDate: String!, endDate: String!): JSON
+
+  # Assets
+  asset(id: UUID!): Asset
+  assets(collectionId: UUID!, first: Int): [Asset!]!
+  assetCollections(organizationId: UUID!, first: Int): [AssetCollection!]!
+
+  # Search
+  search(query: String!, type: String, first: Int): [JSON!]!
+  searchCharacters(query: String!, experienceId: UUID!): [Character!]!
+  searchScenes(query: String!, experienceId: UUID!): [Scene!]!
+}
+
+"""
+============================================================================
+Mutation Root
+============================================================================
+"""
+
+type Mutation {
+  # Authentication
+  login(email: String!, password: String!, deviceName: String): AuthPayload!
+  register(email: String!, password: String!, firstName: String, lastName: String): AuthPayload!
+  logout: Boolean!
+  refreshToken(refreshToken: String!): AuthToken!
+  verifyEmail(token: String!): Boolean!
+  enableMFA(method: String!): JSON!
+  verifyMFA(code: String!): Boolean!
+
+  # User Management
+  updateProfile(firstName: String, lastName: String, bio: String, avatarUrl: String): User!
+  changePassword(currentPassword: String!, newPassword: String!): Boolean!
+  deleteMFAMethod(method: String!): Boolean!
+
+  # Organization Management
+  createOrganization(name: String!, slug: String!, description: String): Organization!
+  updateOrganization(id: UUID!, name: String, description: String): Organization!
+  deleteOrganization(id: UUID!): Boolean!
+  inviteMember(organizationId: UUID!, email: String!, role: MembershipRole!): Membership!
+  updateMembership(id: UUID!, role: MembershipRole!): Membership!
+  removeMember(id: UUID!): Boolean!
+
+  # Team Management
+  createTeam(organizationId: UUID!, name: String!, description: String): Team!
+  updateTeam(id: UUID!, name: String, description: String): Team!
+  deleteTeam(id: UUID!): Boolean!
+  addTeamMember(teamId: UUID!, userId: UUID!, role: String!): User!
+  removeTeamMember(teamId: UUID!, userId: UUID!): Boolean!
+
+  # Project Management
+  createProject(organizationId: UUID!, name: String!, projectType: ProjectType!): Project!
+  updateProject(id: UUID!, name: String, description: String, visibility: ProjectVisibility): Project!
+  deleteProject(id: UUID!): Boolean!
+  archiveProject(id: UUID!): Project!
+
+  # Experience Management
+  createExperience(projectId: UUID!, title: String!, description: String): Experience!
+  updateExperience(id: UUID!, title: String, description: String, genre: String): Experience!
+  publishExperience(id: UUID!): Experience!
+  deleteExperience(id: UUID!): Boolean!
+  duplicateExperience(id: UUID!, newTitle: String!): Experience!
+
+  # Character Management
+  createCharacter(experienceId: UUID!, name: String!, role: String!): Character!
+  updateCharacter(id: UUID!, name: String, personality: JSON, goals: JSON): Character!
+  deleteCharacter(id: UUID!): Boolean!
+  updateCharacterMemory(characterId: UUID!, memory: JSON!): Memory!
+
+  # Scene Management
+  createScene(experienceId: UUID!, title: String!, sceneType: String!): Scene!
+  updateScene(id: UUID!, title: String, description: String, prompt: String): Scene!
+  deleteScene(id: UUID!): Boolean!
+  reorderScenes(experienceId: UUID!, sceneIds: [UUID!]!): [Scene!]!
+
+  # Interactive Elements
+  createInteractiveElement(sceneId: UUID!, elementType: String!, triggerText: String): InteractiveElement!
+  updateInteractiveElement(id: UUID!, actionOutcomes: JSON, consequences: JSON): InteractiveElement!
+  deleteInteractiveElement(id: UUID!): Boolean!
+
+  # Video Generation
+  generateVideo(request: VideoGenerationInput!): VideoGeneration!
+  cancelVideoGeneration(id: UUID!): Boolean!
+  regenerateVideo(id: UUID!): VideoGeneration!
+
+  # Voice Generation
+  createVoiceConfig(experienceId: UUID!, engine: VoiceEngine!, voiceId: String!): VoiceConfig!
+  generateVoice(request: VoiceGenerationInput!): VoiceGeneration!
+  cloneVoice(voiceConfigId: UUID!, sampleFile: Upload!): VoiceConfig!
+
+  # World Building
+  createWorld(experienceId: UUID!, name: String!, worldType: String!): WorldState!
+  updateWorldState(id: UUID!, state: JSON!): WorldState!
+  generateWorld(experienceId: UUID!, config: JSON!): WorldState!
+
+  # Story Arcs
+  createStoryArc(experienceId: UUID!, name: String!, arcType: String!): StoryArc!
+  updateStoryArc(id: UUID!, plannedPacing: JSON): StoryArc!
+
+  # Narrative Branches
+  createNarrativeBranch(experienceId: UUID!, parentId: UUID, choiceText: String!): NarrativeBranch!
+  updateNarrativeBranch(id: UUID!, outcomeSummary: String, probability: Float): NarrativeBranch!
+
+  # Assets
+  uploadAsset(collectionId: UUID!, name: String!, file: Upload!): Asset!
+  createAssetCollection(organizationId: UUID!, name: String!, assetType: String!): AssetCollection!
+  updateAsset(id: UUID!, name: String, tags: [String!]): Asset!
+  deleteAsset(id: UUID!): Boolean!
+
+  # API Keys
+  createAPIKey(organizationId: UUID!, name: String!, permissions: [String!]!): APIKey!
+  revokeAPIKey(id: UUID!): Boolean!
+  rotateAPIKey(id: UUID!): APIKey!
+
+  # Billing
+  updateBillingInfo(organizationId: UUID!, paymentMethod: PaymentMethodInput!): BillingInfo!
+  upgradePlan(organizationId: UUID!, planType: String!): BillingInfo!
+}
+
+"""
+============================================================================
+Subscription Root
+============================================================================
+"""
+
+type Subscription {
+  # Real-time updates
+  experienceUpdated(id: UUID!): Experience!
+  sceneGenerated(sceneId: UUID!): Scene!
+  videoGenerationProgress(id: UUID!): VideoGeneration!
+  voiceGenerationProgress(id: UUID!): VoiceGeneration!
+  streamEventOccurred(sessionId: UUID!): StreamEvent!
+  characterMemoryUpdated(characterId: UUID!): Memory!
+  viewerJoined(experienceId: UUID!): User!
+  viewerLeft(experienceId: UUID!): User!
+}
+
+"""
+============================================================================
+Input Types
+============================================================================
+"""
+
+input VideoGenerationInput {
+  sceneId: UUID
+  experienceId: UUID!
+  engine: VideoGenerationEngine!
+  prompt: String!
+  negativePrompt: String
+  durationSeconds: Float
+  resolution: String
+  fps: Int
+  qualityLevel: String
+}
+
+input VoiceGenerationInput {
+  experienceId: UUID!
+  characterId: UUID
+  voiceConfigId: UUID
+  textToSpeak: String!
+  language: String
+  emotion: String
+  emotionIntensity: Float
+}
+
+input PaymentMethodInput {
+  cardToken: String!
+  isDefault: Boolean
+}
+
+scalar BigInt

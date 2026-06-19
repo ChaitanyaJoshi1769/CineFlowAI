@@ -1,0 +1,232 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+concurrency:
+  group: deployment-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment:
+      name: staging
+      url: https://staging.cineflow.ai
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
+          aws-region: us-west-2
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --name cineflow-staging \
+            --region us-west-2
+
+      - name: Deploy with Helm
+        run: |
+          helm repo add cineflow https://charts.cineflow.ai
+          helm repo update
+          helm upgrade --install cineflow cineflow/cineflow \
+            --namespace cineflow \
+            --values infrastructure/helm/values-staging.yaml \
+            --version ${{ github.sha }} \
+            --wait \
+            --timeout 10m
+
+      - name: Run smoke tests
+        run: |
+          chmod +x ./scripts/deploy/smoke-tests.sh
+          ./scripts/deploy/smoke-tests.sh staging
+
+      - name: Notify Slack
+        if: success()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          payload: |
+            {
+              "text": "✅ Staging Deployment Successful",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Staging Deployment Successful*\nEnvironment: Staging\nCommit: ${{ github.sha }}\nAuthor: ${{ github.actor }}"
+                  }
+                }
+              ]
+            }
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment:
+      name: production
+      url: https://api.cineflow.ai
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PRODUCTION }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PRODUCTION }}
+          aws-region: us-west-2
+
+      - name: Create deployment approval
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "Production deployment requires manual approval in GitHub"
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --name cineflow-production \
+            --region us-west-2
+
+      - name: Create backup
+        run: |
+          BACKUP_ID=$(date +%s)
+          aws rds create-db-snapshot \
+            --db-instance-identifier cineflow-prod \
+            --db-snapshot-identifier cineflow-prod-backup-${BACKUP_ID}
+          aws s3 sync s3://cineflow-prod-assets . --dryrun
+
+      - name: Deploy with Helm
+        run: |
+          helm repo add cineflow https://charts.cineflow.ai
+          helm repo update
+          helm upgrade --install cineflow cineflow/cineflow \
+            --namespace cineflow \
+            --values infrastructure/helm/values-production.yaml \
+            --version ${{ github.sha }} \
+            --wait \
+            --timeout 15m
+
+      - name: Run integration tests
+        run: |
+          chmod +x ./scripts/deploy/integration-tests.sh
+          ./scripts/deploy/integration-tests.sh production
+
+      - name: Verify deployment
+        run: |
+          chmod +x ./scripts/deploy/verify-deployment.sh
+          ./scripts/deploy/verify-deployment.sh production
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release v${{ github.run_number }}
+          body: "Production deployment from ${{ github.sha }}"
+          draft: false
+          prerelease: false
+
+      - name: Notify Slack
+        if: success()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          payload: |
+            {
+              "text": "✅ Production Deployment Successful",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Production Deployment Successful*\nEnvironment: Production\nVersion: v${{ github.run_number }}\nCommit: ${{ github.sha }}\nAuthor: ${{ github.actor }}"
+                  }
+                }
+              ]
+            }
+
+      - name: Notify on Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          payload: |
+            {
+              "text": "❌ Production Deployment Failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Production Deployment Failed*\nCommit: ${{ github.sha }}\nAuthor: ${{ github.actor }}\nPlease check logs immediately!"
+                  }
+                }
+              ]
+            }
+
+  post-deployment-monitoring:
+    name: Post-Deployment Monitoring
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: success()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PRODUCTION }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PRODUCTION }}
+          aws-region: us-west-2
+
+      - name: Check CloudWatch Alarms
+        run: |
+          aws cloudwatch describe-alarms \
+            --state-value ALARM \
+            --query 'MetricAlarms[?contains(AlarmName, `cineflow`)]' \
+            --region us-west-2
+
+      - name: Verify API Health
+        run: |
+          for i in {1..5}; do
+            RESPONSE=$(curl -s -w "%{http_code}" https://api.cineflow.ai/health)
+            if [ ${RESPONSE: -3} -eq 200 ]; then
+              echo "API Health Check Passed"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 10
+          done
+          exit 1
+
+      - name: Performance Baseline Check
+        run: |
+          chmod +x ./scripts/deploy/performance-check.sh
+          ./scripts/deploy/performance-check.sh production
+
+      - name: Rollback on Critical Failure
+        if: failure()
+        run: |
+          helm rollback cineflow --namespace cineflow
+          echo "Rollback completed"

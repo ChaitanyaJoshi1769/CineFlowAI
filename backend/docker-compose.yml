@@ -1,0 +1,279 @@
+version: '3.9'
+
+services:
+  # PostgreSQL - Primary OLTP Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: cineflow-postgres
+    environment:
+      POSTGRES_USER: cineflow
+      POSTGRES_PASSWORD: cineflow_dev
+      POSTGRES_DB: cineflow_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../database/schemas:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cineflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cineflow
+
+  # Redis - Cache and Session Store
+  redis:
+    image: redis:7-alpine
+    container_name: cineflow-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cineflow
+
+  # Neo4j - Graph Database for Relations
+  neo4j:
+    image: neo4j:5-community
+    container_name: cineflow-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/cineflow_dev
+      NEO4J_PLUGINS: '["graph-data-science"]'
+    ports:
+      - "7687:7687"
+      - "7474:7474"
+    volumes:
+      - neo4j_data:/var/lib/neo4j/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p cineflow_dev 'MATCH (n) RETURN count(n)' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cineflow
+
+  # Qdrant - Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: cineflow-qdrant
+    environment:
+      QDRANT_API_KEY: qdrant_dev_key
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cineflow
+
+  # Elasticsearch - Full-text Search
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+    container_name: cineflow-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cineflow
+
+  # Kafka - Message Queue
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: cineflow-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    networks:
+      - cineflow
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: cineflow-kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cineflow
+
+  # Prometheus - Metrics Collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cineflow-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - cineflow
+
+  # Grafana - Metrics Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: cineflow-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: false
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - cineflow
+
+  # Jaeger - Distributed Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: cineflow-jaeger
+    ports:
+      - "6831:6831/udp"
+      - "16686:16686"
+    environment:
+      COLLECTOR_ZIPKIN_HOST_PORT: ":9411"
+    volumes:
+      - jaeger_data:/badger/data
+    networks:
+      - cineflow
+
+  # Temporal - Workflow Orchestration
+  temporal:
+    image: temporalio/server:latest
+    container_name: cineflow-temporal
+    depends_on:
+      - postgres
+    environment:
+      DB: postgresql
+      DB_PORT: 5432
+      POSTGRES_USER: cineflow
+      POSTGRES_PWD: cineflow_dev
+      POSTGRES_DB: temporal
+    ports:
+      - "7233:7233"
+      - "7234:7234"
+    networks:
+      - cineflow
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    container_name: cineflow-temporal-ui
+    depends_on:
+      - temporal
+    ports:
+      - "8080:8080"
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    networks:
+      - cineflow
+
+  # NATS - Lightweight Message Queue
+  nats:
+    image: nats:latest
+    container_name: cineflow-nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats_data:/data
+    networks:
+      - cineflow
+
+  # MinIO - S3 Compatible Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: cineflow-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cineflow
+
+  # LocalStack - AWS Services Emulation
+  localstack:
+    image: localstack/localstack:latest
+    container_name: cineflow-localstack
+    environment:
+      SERVICES: s3,dynamodb,kinesis,sqs,sns
+      DEBUG: 1
+      DATA_DIR: /tmp/localstack/data
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack_data:/tmp/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - cineflow
+
+volumes:
+  postgres_data:
+  redis_data:
+  neo4j_data:
+  qdrant_data:
+  elasticsearch_data:
+  zookeeper_data:
+  kafka_data:
+  prometheus_data:
+  grafana_data:
+  jaeger_data:
+  nats_data:
+  minio_data:
+  localstack_data:
+
+networks:
+  cineflow:
+    driver: bridge

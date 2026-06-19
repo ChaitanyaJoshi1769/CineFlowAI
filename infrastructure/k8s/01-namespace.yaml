@@ -1,0 +1,89 @@
+---
+# Namespace for CineFlow AI
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cineflow
+  labels:
+    app: cineflow
+    environment: production
+  annotations:
+    description: "CineFlow AI Interactive Video Platform"
+
+---
+# ServiceAccount for CineFlow services
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cineflow
+  namespace: cineflow
+  labels:
+    app: cineflow
+
+---
+# ClusterRole for CineFlow services
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cineflow
+  labels:
+    app: cineflow
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
+
+---
+# ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cineflow
+  labels:
+    app: cineflow
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cineflow
+subjects:
+  - kind: ServiceAccount
+    name: cineflow
+    namespace: cineflow
+
+---
+# NetworkPolicy for CineFlow namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cineflow-default
+  namespace: cineflow
+  labels:
+    app: cineflow
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app: cineflow
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              app: cineflow
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53

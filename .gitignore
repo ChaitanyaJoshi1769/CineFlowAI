@@ -1,0 +1,115 @@
+# Environment
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+/target
+/dist
+/build
+*.o
+*.a
+*.so
+*.dylib
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+.pnpm-debug.log
+pnpm-lock.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+.venv
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Rust
+Cargo.lock
+*.rlib
+
+# Logs
+logs/
+*.log
+
+# Dependencies
+.cargo/registry
+.cargo/git
+
+# Runtime
+tmp/
+temp/
+cache/
+
+# Secrets and sensitive data
+secrets/
+.secrets
+.vault
+
+# Testing
+.coverage
+.pytest_cache
+coverage/
+htmlcov/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+dump.sql
+
+# Docker
+docker-compose.override.yml
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+
+# Terraform
+terraform.tfvars
+terraform.tfvars.json
+.terraform/
+.terraform.lock.hcl
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Generated code
+generated/
+proto/
+
+# System
+.AppleDouble
+.LSOverride
+*.DS_Store
